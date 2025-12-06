@@ -22,6 +22,12 @@ import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as T
 
+import copy
+import subprocess
+
+import json
+import csv
+
 torch.backends.cudnn.benchmark = True
 
 # We express the main training hyperparameters (batch size, learning rate, momentum, and weight decay)
@@ -62,6 +68,64 @@ hyp = {
         'tta_level': 2,         # the level of test-time augmentation: 0=none, 1=mirror, 2=mirror+translate
     },
 }
+
+#####################
+# LOGGING HELPERS
+#####################
+RANDOM_SEED = 99
+
+# Set random seed
+def set_seed(seed):
+    import random, numpy as np, torch
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+set_seed(RANDOM_SEED)
+
+# Works if inside git repo directory
+def get_commit_hash():
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            stderr=subprocess.STDOUT
+        ).decode().strip()
+    except Exception as e:
+        return f"Error: {e}"
+
+LOGGING_DICT = copy.deepcopy(hyp)
+LOGGING_DICT["random_seed"] = RANDOM_SEED
+LOGGING_DICT["git_commit_hash"] = get_commit_hash()
+LOGGING_DICT["elapsed_wclock_time"] = 0.0 # TODO: update this after each run
+LOGGING_DICT["final acc"] = 0.0 # TODO: update this after each run
+LOGGING_DICT["last batch loss"] = 0.0 # TODO: update after each run
+
+LOGGING_DICT["epoch_accs"] = [] # TODO: update after each epoch
+LOGGING_DICT["epoch_losses"] = [] # TODO: update after each epoch
+
+# TODO: if time remains, add error outputs to logs
+
+#############################################
+#             Table Gen Helper              #
+#############################################
+
+os.makedirs("Baseline_summary", exist_ok=True)
+SUMMARY_FILE = "Baseline_summary/summary_table.csv"
+
+def update_summary_table(run_no, val_acc, train_loss, elapsed_time):
+    file_exists = os.path.isfile(SUMMARY_FILE)
+    
+    with open(SUMMARY_FILE, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        
+        # write header if file doesn’t exist
+        if not file_exists:
+            writer.writerow(["Run #", "Final Val Acc", "Final Train Loss", "Elapsed Time (s)"])
+        
+        # write the row for this run
+        writer.writerow([run_no, val_acc, train_loss, elapsed_time])
 
 #############################################
 #                DataLoader                 #
@@ -363,6 +427,8 @@ def main(run):
     wd = hyp['opt']['weight_decay'] * batch_size / kilostep_scale
     lr_biases = lr * hyp['opt']['bias_scaler']
 
+    log_run = run
+
     loss_fn = nn.CrossEntropyLoss(label_smoothing=hyp['opt']['label_smoothing'], reduction='none')
     test_loader = CifarLoader('cifar10', train=False, batch_size=2000)
     train_loader = CifarLoader('cifar10', train=True, batch_size=batch_size, aug=hyp['aug'])
@@ -468,15 +534,32 @@ def main(run):
     epoch = 'eval'
     print_training_details(locals(), is_final_entry=True)
 
+    LOGGING_DICT["elapsed_wclock_time"] = total_time_seconds
+    LOGGING_DICT["final acc"] = tta_val_acc
+    LOGGING_DICT["last batch loss"] = loss.item() / batch_size
+
+    # write log to file
+    os.makedirs("expt_logs", exist_ok=True)
+    os.makedirs("expt_logs/Baseline", exist_ok=True)
+    log_filename = f"expt_logs/Baseline/run_{log_run}.json"
+    with open(log_filename, "w") as f:
+        json.dump(LOGGING_DICT, f, indent=4)
+
+    # clear out intermediate checkpoints
+    LOGGING_DICT['epoch_accs'] = []
+    LOGGING_DICT['epoch_losses'] = []
+
     return tta_val_acc
 
 if __name__ == "__main__":
     with open(sys.argv[0]) as f:
         code = f.read()
 
+    NUM_RUNS = 300
+
     print_columns(logging_columns_list, is_head=True)
     #main('warmup')
-    accs = torch.tensor([main(run) for run in range(25)])
+    accs = torch.tensor([main(run) for run in range(NUM_RUNS)])
     print('Mean: %.4f    Std: %.4f' % (accs.mean(), accs.std()))
 
     log = {'code': code, 'accs': accs}
