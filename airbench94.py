@@ -536,7 +536,8 @@ def main(run):
         run = None # Only print the run number once
 
         epoch_losses.append(train_loss)
-        epoch_times.append(total_time_seconds)
+        if epoch > 0: # discard first time elapsed since it seems to be junk
+            epoch_times.append(total_time_seconds)
 
         LOGGING_DICT["epoch_accs"].append(val_acc)
         LOGGING_DICT["epoch_losses"].append(train_loss)
