@@ -28,6 +28,9 @@ import subprocess
 import json
 import csv
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 torch.backends.cudnn.benchmark = True
 
 # We express the main training hyperparameters (batch size, learning rate, momentum, and weight decay)
@@ -111,13 +114,17 @@ LOGGING_DICT["epoch_losses"] = [] # TODO: update after each epoch
 #             Table Gen Helper              #
 #############################################
 
-os.makedirs("Baseline_summary", exist_ok=True)
-SUMMARY_FILE = "Baseline_summary/summary_table.csv"
+folder = "Baseline_summary"
+os.makedirs(folder, exist_ok=True)
+SUMMARY_FILE = os.path.join(folder, "summary_table.csv")
+
+if os.path.exists(SUMMARY_FILE):
+    os.remove(SUMMARY_FILE)
 
 def update_summary_table(run_no, val_acc, train_loss, elapsed_time):
     file_exists = os.path.isfile(SUMMARY_FILE)
     
-    with open(SUMMARY_FILE, mode='w', newline='') as f:
+    with open(SUMMARY_FILE, mode='a', newline='') as f:
         writer = csv.writer(f)
         
         # write header if file doesn’t exist
@@ -126,6 +133,12 @@ def update_summary_table(run_no, val_acc, train_loss, elapsed_time):
         
         # write the row for this run
         writer.writerow([run_no, val_acc, train_loss, elapsed_time])
+
+
+# KEEP TRACK OF ELAPSED TIME FOR ALL EPOCHS
+# HELPFUL FOR TRAINING GRAPH
+ALL_EPOCH_TIMES = []
+ALL_EPOCH_LOSSES = []
 
 #############################################
 #                DataLoader                 #
@@ -472,6 +485,10 @@ def main(run):
     ender.record()
     torch.cuda.synchronize()
     total_time_seconds += 1e-3 * starter.elapsed_time(ender)
+
+    # HELPERS FOR TRAINING GRAPH
+    epoch_times = []
+    epoch_losses = []
     
     for epoch in range(ceil(epochs)):
 
@@ -514,12 +531,15 @@ def main(run):
         # Save the accuracy and loss from the last training batch of the epoch
         train_acc = (outputs.detach().argmax(1) == labels).float().mean().item()
         train_loss = loss.item() / batch_size
-        # Skip validation during training to save time (~12% speedup)
-        val_acc = None
-        if epoch == ceil(epochs) - 1:  # Only validate on final epoch
-            val_acc = evaluate(model, test_loader, tta_level=0)
+        val_acc = evaluate(model, test_loader, tta_level=0)
         print_training_details(locals(), is_final_entry=False)
         run = None # Only print the run number once
+
+        epoch_losses.append(train_loss)
+        epoch_times.append(total_time_seconds)
+
+        LOGGING_DICT["epoch_accs"].append(val_acc)
+        LOGGING_DICT["epoch_losses"].append(train_loss)
 
     ####################
     #  TTA Evaluation  #
@@ -545,6 +565,11 @@ def main(run):
     with open(log_filename, "w") as f:
         json.dump(LOGGING_DICT, f, indent=4)
 
+    update_summary_table(log_run, tta_val_acc, loss.item()/batch_size, total_time_seconds)
+
+    ALL_EPOCH_LOSSES.append(epoch_losses)
+    ALL_EPOCH_TIMES.append(epoch_times)
+
     # clear out intermediate checkpoints
     LOGGING_DICT['epoch_accs'] = []
     LOGGING_DICT['epoch_losses'] = []
@@ -561,6 +586,38 @@ if __name__ == "__main__":
     #main('warmup')
     accs = torch.tensor([main(run) for run in range(NUM_RUNS)])
     print('Mean: %.4f    Std: %.4f' % (accs.mean(), accs.std()))
+
+    epoch_time_array = np.array(ALL_EPOCH_TIMES)
+    epoch_time_means = np.mean(epoch_time_array, axis=0)
+
+    epoch_loss_array = np.array(ALL_EPOCH_LOSSES)
+    epoch_loss_means = np.mean(epoch_loss_array, axis=0)
+
+    # save times plot as PNG
+    os.makedirs("plots", exist_ok=True)  # ensure the folder exists
+
+    plt.figure(figsize=(8,5))
+    plt.plot(range(1, len(epoch_time_means)+1), epoch_time_means, marker='o')
+    plt.xlabel("Epoch")
+    plt.ylabel("Average Epoch Wall-Clock Time (s)")
+    plt.title("Baseline Training Time per Epoch")
+    plt.grid(True)
+
+    plot_filename_times = "plots/avg_epoch_times_baseline.png"
+    plt.savefig(plot_filename_times, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # save losses plot as PNG
+    plt.figure(figsize=(8,5))
+    plt.plot(range(1, len(epoch_loss_means)+1), epoch_loss_means, marker='o')
+    plt.xlabel("Epoch")
+    plt.ylabel("Average Epoch Loss (s)")
+    plt.title("Baseline Loss at each Epoch")
+    plt.grid(True)
+    
+    plot_filename_losses = "plots/avg_epoch_losses_baseline.png"
+    plt.savefig(plot_filename_losses, dpi=300, bbox_inches='tight')
+    plt.close()
 
     log = {'code': code, 'accs': accs}
     log_dir = os.path.join('logs', str(uuid.uuid4()))
