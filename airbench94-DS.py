@@ -116,7 +116,7 @@ LOGGING_DICT["epoch_losses"] = [] # TODO: update after each epoch
 
 folder = "DS_summary" 
 os.makedirs(folder, exist_ok=True)
-SUMMARY_FILE = os.path.join(folder, "summary_table.csv")
+SUMMARY_FILE = os.path.join(folder, "DS_summary_table.csv")
 
 if os.path.exists(SUMMARY_FILE):
     os.remove(SUMMARY_FILE)
