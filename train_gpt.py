@@ -142,6 +142,7 @@ class CausalSelfAttention(nn.Module):
         self.n_head = config.n_head
         self.n_embd = config.n_embd
         self.head_dim = self.n_embd // self.n_head
+        self.attention_head_dropout = config.attention_head_dropout
         assert self.n_embd % self.n_head == 0
         self.c_q = nn.Linear(self.n_embd, self.n_embd, bias=False)
         self.c_k = nn.Linear(self.n_embd, self.n_embd, bias=False)
@@ -159,7 +160,26 @@ class CausalSelfAttention(nn.Module):
         cos, sin = self.rotary(q)
         q, k = apply_rotary_emb(q, cos, sin), apply_rotary_emb(k, cos, sin)
         q, k = F.rms_norm(q, (q.size(-1),)), F.rms_norm(k, (k.size(-1),)) # QK norm suggested by @Grad62304977
-        y = F.scaled_dot_product_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), is_causal=True)
+        
+        # Stochastic Attention Head Selector (dropout-like regularization for attention heads)
+        if self.training and self.attention_head_dropout > 0.0:
+            # Create a binary mask for head selection: shape (1, n_head, 1, 1) for broadcasting
+            # Keep probability = (1 - dropout_rate)
+            keep_prob = 1.0 - self.attention_head_dropout
+            head_mask = torch.bernoulli(torch.full((1, self.n_head, 1, 1), keep_prob, device=q.device))
+            # Scale by 1/keep_prob to maintain expected output magnitude (like inverted dropout)
+            head_mask = head_mask / keep_prob
+            
+            # Transpose to (B, n_head, T, head_dim) for both q and k (they're already transposed in next line)
+            # Apply attention with head masking
+            q_t, k_t, v_t = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
+            y = F.scaled_dot_product_attention(q_t, k_t, v_t, is_causal=True)
+            # Apply head mask after attention: y has shape (B, n_head, T, head_dim)
+            y = y * head_mask
+        else:
+            # Standard attention without head dropout
+            y = F.scaled_dot_product_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), is_causal=True)
+        
         y = y.transpose(1, 2).contiguous().view_as(x) # re-assemble all head outputs side by side
         y = self.c_proj(y)
         return y
@@ -199,6 +219,7 @@ class GPTConfig:
     n_layer : int = 12
     n_head : int = 6 # head dim 128 suggested by @Grad62304977
     n_embd : int = 768
+    attention_head_dropout : float = 0.0  # stochastic head selector: 0.0 = no dropout, 0.2 = drop 20% of heads
 
 class GPT(nn.Module):
 
