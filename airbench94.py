@@ -105,7 +105,7 @@ LOGGING_DICT["elapsed_wclock_time"] = 0.0 # TODO: update this after each run
 LOGGING_DICT["final acc"] = 0.0 # TODO: update this after each run
 LOGGING_DICT["last batch loss"] = 0.0 # TODO: update after each run
 
-LOGGING_DICT["epoch_accs"] = [] # TODO: update after each epoch
+LOGGING_DICT["epoch_val_accs"] = [] # TODO: update after each epoch
 LOGGING_DICT["epoch_losses"] = [] # TODO: update after each epoch
 
 # TODO: if time remains, add error outputs to logs
@@ -139,6 +139,7 @@ def update_summary_table(run_no, val_acc, train_loss, elapsed_time):
 # HELPFUL FOR TRAINING GRAPH
 ALL_EPOCH_TIMES = []
 ALL_EPOCH_LOSSES = []
+ALL_EPOCH_VALACCS = []
 
 #############################################
 #                DataLoader                 #
@@ -489,6 +490,7 @@ def main(run):
     # HELPERS FOR TRAINING GRAPH
     epoch_times = []
     epoch_losses = []
+    epoch_valaccs = []
     
     for epoch in range(ceil(epochs)):
 
@@ -537,8 +539,9 @@ def main(run):
 
         epoch_losses.append(train_loss)
         epoch_times.append(total_time_seconds)
+        epoch_valaccs.append(val_acc)
 
-        LOGGING_DICT["epoch_accs"].append(val_acc)
+        LOGGING_DICT["epoch_val_accs"].append(val_acc)
         LOGGING_DICT["epoch_losses"].append(train_loss)
 
     ####################
@@ -568,11 +571,12 @@ def main(run):
     update_summary_table(log_run, tta_val_acc, loss.item()/batch_size, total_time_seconds)
 
     ALL_EPOCH_LOSSES.append(epoch_losses)
-    if log_run > 0:
+    if log_run > 0: # The wall clock time seems to be funky for the first run; just discarding as outlier
         ALL_EPOCH_TIMES.append(epoch_times)
+    ALL_EPOCH_VALACCS.append(epoch_valaccs)
 
     # clear out intermediate checkpoints
-    LOGGING_DICT['epoch_accs'] = []
+    LOGGING_DICT['epoch_val_accs'] = []
     LOGGING_DICT['epoch_losses'] = []
 
     return tta_val_acc
@@ -594,6 +598,9 @@ if __name__ == "__main__":
     epoch_loss_array = np.array(ALL_EPOCH_LOSSES)
     epoch_loss_means = np.mean(epoch_loss_array, axis=0)
 
+    epoch_valaccs_array = np.array(ALL_EPOCH_VALACCS)
+    epoch_valaccs_means = np.mean(epoch_valaccs_array, axis=0)
+
     # save times plot as PNG
     os.makedirs("plots", exist_ok=True)  # ensure the folder exists
 
@@ -612,11 +619,23 @@ if __name__ == "__main__":
     plt.figure(figsize=(8,5))
     plt.plot(range(1, len(epoch_loss_means)+1), epoch_loss_means, marker='o')
     plt.xlabel("Epoch")
-    plt.ylabel("Average Epoch Loss (s)")
-    plt.title("Baseline Loss at each Epoch")
+    plt.ylabel("Average Epoch Training Loss")
+    plt.title("Baseline Training Loss at each Epoch")
     plt.grid(True)
     
     plot_filename_losses = "plots/avg_epoch_losses_baseline.png"
+    plt.savefig(plot_filename_losses, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # save val accs plot as PNG
+    plt.figure(figsize=(8,5))
+    plt.plot(range(1, len(epoch_valaccs_means)+1), epoch_valaccs_means, marker='o')
+    plt.xlabel("Epoch")
+    plt.ylabel("Average Validation Acc. per Epoch")
+    plt.title("Baseline Validation Accuracy at each Epoch")
+    plt.grid(True)
+    
+    plot_filename_losses = "plots/avg_epoch_valaccs_baseline.png"
     plt.savefig(plot_filename_losses, dpi=300, bbox_inches='tight')
     plt.close()
 
