@@ -48,8 +48,8 @@ torch.backends.cudnn.benchmark = True
 hyp = {
     'opt': {
         'train_epochs': 9.9,
-        'batch_size': 1536,         # Increased from 1024 for better GPU utilization (+25% speed)
-        'lr': 11.5 * 1.5,           # Scaled learning rate proportionally (1536/1024 = 1.5)
+        'batch_size': 1024,
+        'lr': 11.5,
         'momentum': 0.85,
         'weight_decay': 0.0153,     # weight decay per 1024 examples (decoupled from learning rate)
         'bias_scaler': 64.0,        # scales up learning rate (but not weight decay) for BatchNorm biases
@@ -116,7 +116,7 @@ LOGGING_DICT["epoch_losses"] = [] # TODO: update after each epoch
 
 folder = "Baseline_summary"
 os.makedirs(folder, exist_ok=True)
-SUMMARY_FILE = os.path.join(folder, "summary_table.csv")
+SUMMARY_FILE = os.path.join(folder, "baseline_summary_table.csv")
 
 if os.path.exists(SUMMARY_FILE):
     os.remove(SUMMARY_FILE)
