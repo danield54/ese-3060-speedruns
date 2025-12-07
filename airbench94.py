@@ -536,8 +536,7 @@ def main(run):
         run = None # Only print the run number once
 
         epoch_losses.append(train_loss)
-        if epoch > 0: # discard first time elapsed since it seems to be junk
-            epoch_times.append(total_time_seconds)
+        epoch_times.append(total_time_seconds)
 
         LOGGING_DICT["epoch_accs"].append(val_acc)
         LOGGING_DICT["epoch_losses"].append(train_loss)
@@ -569,7 +568,8 @@ def main(run):
     update_summary_table(log_run, tta_val_acc, loss.item()/batch_size, total_time_seconds)
 
     ALL_EPOCH_LOSSES.append(epoch_losses)
-    ALL_EPOCH_TIMES.append(epoch_times)
+    if log_run > 0:
+        ALL_EPOCH_TIMES.append(epoch_times)
 
     # clear out intermediate checkpoints
     LOGGING_DICT['epoch_accs'] = []
