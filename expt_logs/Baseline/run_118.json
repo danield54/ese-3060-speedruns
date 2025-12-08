@@ -25,7 +25,7 @@
     },
     "random_seed": 99,
     "git_commit_hash": "85402c5c6fafc553256ddda6a38a5e86792e3fed",
-    "elapsed_wclock_time": 4.169985214233399,
+    "elapsed_wclock_time": 4.121075062274933,
     "final acc": 0.9390999674797058,
     "last batch loss": 0.9267578125,
     "epoch_val_accs": [
