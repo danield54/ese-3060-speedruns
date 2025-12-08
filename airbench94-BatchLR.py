@@ -458,7 +458,7 @@ def main(run):
     other_params = [p for k, p in model.named_parameters() if 'norm' not in k and p.requires_grad]
     param_configs = [dict(params=norm_biases, lr=lr_biases, weight_decay=wd/lr_biases),
                      dict(params=other_params, lr=lr, weight_decay=wd/lr)]
-    optimizer = torch.optim.SGD(param_configs, momentum=momentum, nesterov=True)
+    optimizer = torch.optim.SGD(param_configs, momentum=momentum, nesterov=True, fused=True)
 
     def get_lr(step):
         warmup_steps = int(total_train_steps * 0.23)
