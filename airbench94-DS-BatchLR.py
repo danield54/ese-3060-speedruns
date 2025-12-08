@@ -505,7 +505,7 @@ def main(run):
     other_params = [p for k, p in model.named_parameters() if 'norm' not in k and p.requires_grad]
     param_configs = [dict(params=norm_biases, lr=lr_biases, weight_decay=wd/lr_biases),
                      dict(params=other_params, lr=lr, weight_decay=wd/lr)]
-    optimizer = torch.optim.SGD(param_configs, momentum=momentum, nesterov=True)
+    optimizer = torch.optim.SGD(param_configs, momentum=momentum, nesterov=True, fused=True)
 
     # 23% warmup
     # 77% warmdown
@@ -634,7 +634,7 @@ if __name__ == "__main__":
     with open(sys.argv[0]) as f:
         code = f.read()
 
-    NUM_RUNS = 10 # change to 300 for actual experimentation
+    NUM_RUNS = 300 # change to 300 for actual experimentation
 
     print_columns(logging_columns_list, is_head=True)
     #main('warmup')
