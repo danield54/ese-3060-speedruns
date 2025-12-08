@@ -597,6 +597,8 @@ def main(run):
     #  TTA Evaluation  #
     ####################
 
+    training_time = total_time_seconds
+
     starter.record()
     tta_val_acc = evaluate(model, test_loader, tta_level=hyp['net']['tta_level'])
     ender.record()
@@ -617,7 +619,7 @@ def main(run):
     with open(log_filename, "w") as f:
         json.dump(LOGGING_DICT, f, indent=4)
 
-    update_summary_table(log_run, tta_val_acc, loss.item()/batch_size, total_time_seconds)
+    update_summary_table(log_run, tta_val_acc, loss.item()/batch_size, training_time)
 
     ALL_EPOCH_LOSSES.append(epoch_losses)
     if log_run > 0:

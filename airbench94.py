@@ -129,7 +129,7 @@ def update_summary_table(run_no, val_acc, train_loss, elapsed_time):
         
         # write header if file doesn’t exist
         if not file_exists:
-            writer.writerow(["Run #", "Final Val Acc", "Final Train Loss", "Elapsed Time (s)"])
+            writer.writerow(["Run #", "Final Val Acc", "Final Train Loss", "Elapsed Training Time (s)"])
         
         # write the row for this run
         writer.writerow([run_no, val_acc, train_loss, elapsed_time])
@@ -548,6 +548,8 @@ def main(run):
     #  TTA Evaluation  #
     ####################
 
+    training_time = total_time_seconds
+
     starter.record()
     tta_val_acc = evaluate(model, test_loader, tta_level=hyp['net']['tta_level'])
     ender.record()
@@ -557,7 +559,7 @@ def main(run):
     epoch = 'eval'
     print_training_details(locals(), is_final_entry=True)
 
-    LOGGING_DICT["elapsed_wclock_time"] = total_time_seconds
+    LOGGING_DICT["elapsed_wclock_time"] = total_time_seconds # includes eval time per epoch
     LOGGING_DICT["final acc"] = tta_val_acc
     LOGGING_DICT["last batch loss"] = loss.item() / batch_size
 
@@ -568,7 +570,7 @@ def main(run):
     with open(log_filename, "w") as f:
         json.dump(LOGGING_DICT, f, indent=4)
 
-    update_summary_table(log_run, tta_val_acc, loss.item()/batch_size, total_time_seconds)
+    update_summary_table(log_run, tta_val_acc, loss.item()/batch_size, training_time)
 
     ALL_EPOCH_LOSSES.append(epoch_losses)
     if log_run > 0: # The wall clock time seems to be funky for the first run; just discarding as outlier
