@@ -47,6 +47,9 @@ will print to the terminal a series of statistical metrics (mean, std dev, confi
 
 NOTE: Running analytics.py may need additional pip installs; it uses pandas, numpy, and scipy.
 
+ALSO NOTE: We have commit hashes in my expt_logs, but we did not have time to properly link GitHub and Runpod.io, so git commit hashes may be static/outdated from when I first copied the repository into the Runpod instance.
+
+================================================================
 
 ## Project Overview
 This project contains two machine learning training benchmarks:
