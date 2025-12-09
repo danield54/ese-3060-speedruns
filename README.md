@@ -1,5 +1,53 @@
 # ESE 3060 Final Project Fall 2025
 
+## PART 1 (CIFAR-10) Instructions + Guide:
+Install all required packages:
+```bash
+pip install -r requirements.txt
+```
+
+Then, to run baseline:
+```bash
+python3 airbench94.py
+```
+
+To run with depthwise-separable convolution modification:
+```bash
+python3 airbench94-DS.py
+```
+
+To run with batch_size/LR/fused kernel modification:
+```bash
+python3 airbench94-BatchLR.py
+```
+
+To run with both DS and batch_size/LR/fused kernel modifications:
+```bash
+python3 airbench94-DS-BatchLR.py
+```
+
+Each python script produces:
+- A corresponding experiment logs folder in ```expt_logs/```
+  - This contains many .jsons corresponding to each run
+  - Each log contains information on the random seed, hyperparameters, etc.
+- A summary table.csv (located in the corresponding ```*_summary/``` directory
+- Training loss, validation acc, and time elapsed plots in the ```plots/``` directory
+
+There is also a python script called
+```bash
+analytics.py
+```
+
+Running
+```bash
+python3 analytics.py
+```
+
+will print to the terminal a series of statistical metrics (mean, std dev, confidence intervals) when provided with a file path name to a summary table csv.
+
+NOTE: Running analytics.py may need additional pip installs; it uses pandas, numpy, and scipy.
+
+
 ## Project Overview
 This project contains two machine learning training benchmarks:
 - **airbench94.py**: CIFAR-10 image classification benchmark
