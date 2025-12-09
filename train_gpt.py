@@ -465,7 +465,7 @@ for step in range(args.num_iterations + 1):
         val_loss = 0.0
         for _ in range(val_steps):
             x_val, y_val = val_loader.next_batch()
-            with torch.inference_mode(), ctx: # of course, we'd like to use no_grad() here too, but that creates a torch.compile error for some reason
+            with ctx: # of course, we'd like to use no_grad() here too, but that creates a torch.compile error for some reason
                 _, loss = model(x_val, y_val, return_logits=False)
                 val_loss += loss.detach()
                 del loss
@@ -502,7 +502,7 @@ for step in range(args.num_iterations + 1):
     model.train()
     for i in range(1, train_accumulation_steps+1):
         # forward pass
-        with torch.inference_mode(), ctx:
+        with ctx:
             _, loss = model(x, y, return_logits=False)
             train_loss = loss.detach()
         # advance the dataset for the next batch
