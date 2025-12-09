@@ -401,10 +401,32 @@ raw_model = model.module # always contains the "raw" unwrapped model
 ctx = torch.amp.autocast(device_type='cuda', dtype=torch.bfloat16)
 
 # init the optimizer(s)
-optimizer1 = torch.optim.AdamW(raw_model.lm_head.parameters(), lr=args.learning_rate, betas=(0.9, 0.95),
-                               weight_decay=args.weight_decay, fused=True)
-optimizer2 = Muon(raw_model.transformer.h.parameters(), lr=0.1*args.learning_rate, momentum=0.95)
+muon_params = []
+adam_params = []
+
+# Iterate over the transformer blocks
+for name, p in raw_model.transformer.h.named_parameters():
+    # Filter 2D params (Linear weights) for Muon
+    if p.ndim == 2:
+        muon_params.append(p)
+    # Filter 1D params (RMSNorm weights) for AdamW
+    else:
+        adam_params.append(p)
+
+# Optimizer 1: AdamW (Handles Head + Embeddings + Norms)
+optimizer1 = torch.optim.AdamW(
+    list(raw_model.lm_head.parameters()) + adam_params, 
+    lr=args.learning_rate, 
+    betas=(0.9, 0.95),
+    weight_decay=args.weight_decay, 
+    fused=True
+)
+
+# Optimizer 2: Muon (Handles only the 2D Attention/MLP weights)
+optimizer2 = Muon(muon_params, lr=0.1*args.learning_rate, momentum=0.95)
+
 optimizers = [optimizer1, optimizer2]
+
 # learning rate decay scheduler (linear warmup and warmdown)
 def get_lr(it):
     assert it <= args.num_iterations
