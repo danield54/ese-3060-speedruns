@@ -20,6 +20,7 @@ logs/
 *.pt
 *.pth
 *.tar.gz
+fineweb10b/
 
 # IDE
 .vscode/
