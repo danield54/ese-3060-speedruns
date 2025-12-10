@@ -130,8 +130,29 @@ def generate_plots(df_base, df_drop):
     plt.savefig(save_path, dpi=300)
     print(f"Plots saved successfully to: {save_path}")
     
-    # Optional: Still show it if running interactively
     # plt.show()
+
+
+def compute_gap_stats(df, window=50):
+    """
+    Computes generalization gap, mean, and std for a given run.
+    Returns (gap_series, mean_gap, std_gap).
+    """
+    train = df[df['type'] == 'train'].set_index('step')
+    val = df[df['type'] == 'val'].set_index('step')
+
+    rolling_train = train['train_loss'].rolling(window).mean()
+    gap = val['val_loss'] - rolling_train.reindex(val.index)
+
+    gap = gap.dropna()
+
+    mean_gap = gap.mean()
+    std_gap = gap.std()
+
+    print(f"Mean Gap: {mean_gap:.4f}")
+    print(f"Std Gap: {std_gap:.4f}")
+
+    return gap, mean_gap, std_gap
 
 # USAGE:
 df_baseline1 = parse_log_file(r'C:\Users\danny\OneDrive - PennO365\junior\ese3060\3060_final_proj\ese-3060-project\nano-gpt-logs\baseline_log.txt')
