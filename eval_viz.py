@@ -154,8 +154,66 @@ def compute_gap_stats(df, window=50):
 
     return gap, mean_gap, std_gap
 
+
+def plot_gap_confidence_multi(models, window=50, output_path=None):
+    """
+    Plots generalization gaps for multiple models with 95 percent CI bands.
+
+    """
+
+    plt.figure(figsize=(10, 6))
+    summary = []
+
+    for df, label, color in models:
+        train = df[df['type'] == 'train'].set_index('step')
+        val = df[df['type'] == 'val'].set_index('step')
+        rolling_train = train['train_loss'].rolling(window).mean()
+        gap = val['val_loss'] - rolling_train.reindex(val.index)
+        gap = gap.dropna()
+
+        mu = gap.mean()
+        sd = gap.std()
+        se = sd / np.sqrt(len(gap))
+        ci = 1.96 * se
+        steps = np.arange(len(gap))
+
+        plt.plot(steps, gap.values, label=label, color=color)
+        plt.fill_between(steps, gap.values - ci, gap.values + ci,
+                         alpha=0.2, color=color)
+
+        summary.append((label, mu, ci))
+
+    plt.title('Generalization Gaps with 95 percent Confidence Intervals')
+    plt.xlabel('Steps')
+    plt.ylabel('Gap (Val Loss - Train Loss)')
+    plt.legend()
+    plt.tight_layout()
+
+    # Handle saving logic
+    if output_path:
+        # If directory is provided, save with default name
+        if os.path.isdir(output_path):
+            save_file = os.path.join(output_path, "gap_confidence_plot.png")
+        else:
+            save_file = output_path
+
+        plt.savefig(save_file, dpi=300)
+        print(f"\nFigure saved to: {save_file}")
+
+    # plt.show()
+
+    print("\nStatistical Summary")
+    for label, mu, ci in summary:
+        print(f"{label}: mean gap = {mu:.4f} ± {ci:.4f} (95 percent CI)")
+
 # USAGE:
 df_baseline1 = parse_log_file(r'C:\Users\danny\OneDrive - PennO365\junior\ese3060\3060_final_proj\ese-3060-project\nano-gpt-logs\baseline_log.txt')
 df_drop1 = parse_log_file(r'C:\Users\danny\OneDrive - PennO365\junior\ese3060\3060_final_proj\ese-3060-project\nano-gpt-logs\dropout_01_run1.txt')
 df_drop2 = parse_log_file(r'C:\Users\danny\OneDrive - PennO365\junior\ese3060\3060_final_proj\ese-3060-project\nano-gpt-logs\dropout_02_run1.txt')
 generate_plots(df_baseline1, df_drop1)
+
+plot_gap_confidence_multi([
+    (df_baseline1, "Baseline", "blue"),
+    (df_drop1, "Dropout 0.1", "red"),
+    (df_drop2, "Dropout 0.2", "green")
+], output_path="output_plots/three_model_ci.png")  
