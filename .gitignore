@@ -21,6 +21,7 @@ logs/
 *.pth
 *.tar.gz
 fineweb10B/
+nano-gpt-logs/
 
 # IDE
 .vscode/
